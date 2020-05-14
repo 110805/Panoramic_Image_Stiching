@@ -150,18 +150,17 @@ def warp(image1, image2, H):
         for j in range(w1 + w2):
             # H @ [x, y, 1].T = lambda * [x', y', 1]
             # inv_H @ [x, y, 1].T = 1/lambda * [x, y, 1]
-            pos2 = np.array([j, i, 1])
-            pos1 = inv_H @ pos2
-            pos1[0] /= pos1[2]
-            pos1[1] /= pos1[2]
-            pos1 = np.around(pos1[:2])
-            new_i, new_j = int(pos1[0]), int(pos1[1])
+            coord2 = np.array([j, i, 1])
+            coord1 = inv_H @ coord2
+            coord1[0] /= coord1[2]
+            coord1[1] /= coord1[2]
+            coord1 = np.around(coord1[:2])
+            new_i, new_j = int(coord1[0]), int(coord1[1]) # find the closest coordinate
             if new_i>=0 and new_j>=0 and new_i<w1 and new_j<h1: # check boundary
                 result_image[i][j] = image1[new_j][new_i] # get the pixel values in image1, and map it to the result_image
     
     result_image[0:h2, 0:w2] = image2
-    cv2.imshow(os.path.join('result', 'result_1.jpg'),result_image)
-    return
+    return result_image
 
 def images_stitching(images, ratio, threshold):
     keypoints1, features1 = detect_feature_and_keypoints(images[1]) 
@@ -172,18 +171,31 @@ def images_stitching(images, ratio, threshold):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
     H = find_Homography(keypoints1, keypoints2, valid_match, threshold)
-    warp(images[1], images[0], H)
+    result_image = warp(images[1], images[0], H)
+    return result_image
 
 if __name__ == '__main__':
     root = os.path.join('data')
-    num_img = 2
+    num_img = 6
     ratio = 0.75 # recommend 0.7 to 0.8
     threshold = 4.0 # recommend 0 to 10
     name = []
-    name.append('1.jpg')
-    name.append('2.jpg')
+    name.append('nature1.jpg')
+    name.append('nature2.jpg')
+    name.append('nature3.jpg')
+    name.append('nature4.jpg')
+    name.append('nature5.jpg')
+    name.append('nature6.jpg')
+
     images = []
     for i in range(num_img):
         images.append(cv2.imread(os.path.join(root, name[i])))
 
-    images_stitching(images, ratio, threshold)
+    if num_img == 2:
+        result_image = images_stitching(images, ratio, threshold)
+    else:
+        result_image = images_stitching([images[-2], images[-1]], ratio, threshold)
+        for i in range(num_img - 3, -1, -1):
+            result_image = images_stitching([images[i], result_image], ratio, threshold)
+    
+    cv2.imwrite(os.path.join('result', 'result_nature.jpg'), result_image)
